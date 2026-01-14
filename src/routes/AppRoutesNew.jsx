@@ -14,6 +14,7 @@ import ShipmentList from '../shipments/ShipmentList';
 import ShipmentCreate from '../shipments/ShipmentCreate';
 import ShipmentEdit from '../shipments/ShipmentEdit';
 import ShipmentDetails from '../shipments/ShipmentDetails';
+import RateCalculator from '../shipments/RateCalculator';
 import CarrierList from '../carriers/CarrierList';
 import CarrierCreate from '../carriers/CarrierCreate';
 import VehicleList from '../carriers/VehicleList';
@@ -64,8 +65,8 @@ export default function AppRoutes() {
         <Route path="shipments">
           <Route index element={<ShipmentList />} />
           <Route path="create" element={<ShipmentCreate />} />
-          <Route path="rates" element={<PlaceholderPage title="Get Rates" />} />
-          <Route path="calculator" element={<PlaceholderPage title="Rate Calculator" />} />
+          <Route path="rates" element={<RateCalculator />} />
+          <Route path="calculator" element={<RateCalculator />} />
           <Route path="history" element={<PlaceholderPage title="Shipment History" />} />
           <Route path=":id" element={<ShipmentDetails />} />
           <Route path=":id/edit" element={<ShipmentEdit />} />
