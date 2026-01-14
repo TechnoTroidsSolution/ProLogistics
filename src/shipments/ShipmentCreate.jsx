@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useShipmentStore } from './shipment.store';
 import { useInventoryStore } from '../inventory/inventory.store';
 import { SHIPMENT_STATUS } from '../utils/constants';
-import { ArrowLeft, Save, Package, MapPin, User, Phone, Mail, FileText, Plus, Trash2, Box, Search, X, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Save, Package, MapPin, User, Phone, Mail, FileText, Plus, Trash2, Box, Search, X, ShoppingCart, DollarSign, Truck, Clock, RefreshCw, Star, Layers, Filter, CreditCard, Building2 } from 'lucide-react';
+import { calculateRates, CARRIERS_DATA } from '../data/ratesData';
 
 /**
  * Shipment Create Page
@@ -12,7 +13,32 @@ import { ArrowLeft, Save, Package, MapPin, User, Phone, Mail, FileText, Plus, Tr
 export default function ShipmentCreate() {
   const navigate = useNavigate();
   const { createShipment, isLoading, error } = useShipmentStore();
-  const { items: inventoryItems, fetchInventory, searchInventory, filterByCategory, getFilteredItems, searchQuery, categoryFilter } = useInventoryStore();
+  const { items: inventoryItems, fetchInventory } = useInventoryStore();
+
+  // Rates state
+  const [rates, setRates] = useState([]);
+  const [selectedRate, setSelectedRate] = useState(null);
+  const [fetchingRates, setFetchingRates] = useState(false);
+  const [ratesError, setRatesError] = useState('');
+  
+  // Rate mode: 'all' = Shop Rates (all carriers), 'single' = Rate Current (single carrier)
+  const [rateMode, setRateMode] = useState('all');
+  const [selectedCarrierId, setSelectedCarrierId] = useState('');
+  
+  // Single Carrier Account Details
+  const [carrierAccount, setCarrierAccount] = useState('');
+  const [paymentTerms, setPaymentTerms] = useState('shipper'); // shipper, receiver, third_party
+  const [thirdPartyAccount, setThirdPartyAccount] = useState('');
+  
+  // Demo carrier accounts (later from database)
+  const CARRIER_ACCOUNTS = {
+    'CAR-001': [{ id: 'ACC-FF-001', number: 'FF-789456123', name: 'FastFreight Main Account' }, { id: 'ACC-FF-002', number: 'FF-321654987', name: 'FastFreight Secondary' }],
+    'CAR-002': [{ id: 'ACC-TG-001', number: 'TG-456789123', name: 'TransGlobal Primary' }],
+    'CAR-003': [{ id: 'ACC-MH-001', number: 'MH-987654321', name: 'Metro Haulers Corporate' }, { id: 'ACC-MH-002', number: 'MH-123456789', name: 'Metro Haulers Regional' }],
+    'CAR-004': [{ id: 'ACC-QS-001', number: 'QS-741852963', name: 'QuickShip Enterprise' }],
+    'CAR-005': [{ id: 'ACC-UF-001', number: 'UF-369258147', name: 'United Freight Standard' }],
+    'CAR-006': [{ id: 'ACC-PL-001', number: 'PL-852963741', name: 'Prime Logistics Premium' }, { id: 'ACC-PL-002', number: 'PL-147258369', name: 'Prime Logistics Basic' }],
+  };
 
   // Fetch inventory on mount
   useEffect(() => {
@@ -159,6 +185,70 @@ export default function ShipmentCreate() {
 
   const getTotalItemsValue = () => {
     return items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0).toFixed(2);
+  };
+
+  // Check if form has enough data to fetch rates
+  const canFetchRates = () => {
+    const hasBasicInfo = formData.origin.trim() && 
+           formData.destination.trim() && 
+           formData.weight && 
+           Number.parseFloat(formData.weight) > 0;
+    
+    // In single carrier mode, also need a carrier and account selected
+    if (rateMode === 'single') {
+      const hasCarrierInfo = selectedCarrierId && carrierAccount;
+      const hasPaymentInfo = paymentTerms !== 'third_party' || thirdPartyAccount.trim();
+      return hasBasicInfo && hasCarrierInfo && hasPaymentInfo;
+    }
+    
+    return hasBasicInfo;
+  };
+
+  // Fetch shipping rates from carriers using rates data file
+  const fetchRates = async () => {
+    if (!canFetchRates()) {
+      if (rateMode === 'single') {
+        if (!selectedCarrierId) {
+          setRatesError('Please select a carrier');
+        } else if (!carrierAccount) {
+          setRatesError('Please select an account number');
+        } else if (paymentTerms === 'third_party' && !thirdPartyAccount.trim()) {
+          setRatesError('Please enter third party account number');
+        } else {
+          setRatesError('Please fill in Origin, Destination, and Weight');
+        }
+      } else {
+        setRatesError('Please fill in Origin, Destination, and Weight to get rates');
+      }
+      return;
+    }
+
+    setFetchingRates(true);
+    setRatesError('');
+    setRates([]);
+    setSelectedRate(null);
+
+    // Simulate API call delay (will be replaced with actual API call later)
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      // Get rates from the data file
+      const calculatedRates = calculateRates({
+        origin: formData.origin,
+        destination: formData.destination,
+        weight: formData.weight,
+        priority: formData.priority,
+        carrierId: rateMode === 'single' ? selectedCarrierId : null,
+        accountNumber: rateMode === 'single' ? carrierAccount : null,
+        paymentTerms: rateMode === 'single' ? paymentTerms : 'shipper',
+      });
+
+      setRates(calculatedRates);
+    } catch (err) {
+      setRatesError('Failed to fetch rates. Please try again.');
+    }
+
+    setFetchingRates(false);
   };
 
   const handleSubmit = async (e) => {
@@ -734,6 +824,450 @@ export default function ShipmentCreate() {
               className={inputClasses('notes')}
               placeholder="Special handling instructions, delivery preferences, etc."
             />
+          </div>
+
+          {/* Fetch Rates Section */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <DollarSign className="text-green-600" size={18} />
+                <h2 className="font-semibold text-gray-900">Shipping Rates</h2>
+              </div>
+              <button
+                type="button"
+                onClick={fetchRates}
+                disabled={fetchingRates || !canFetchRates()}
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all ${
+                  canFetchRates()
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {fetchingRates ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Fetching Rates...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={16} />
+                    Fetch Rates
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Rate Mode Selector */}
+            <div className="mb-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Mode Tabs */}
+                <div className="flex bg-gray-100 rounded-lg p-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRateMode('all');
+                      setRates([]);
+                      setSelectedRate(null);
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      rateMode === 'all'
+                        ? 'bg-white text-green-700 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Layers size={16} />
+                    <span>Shop Rates</span>
+                    <span className="text-xs text-gray-400">(All Carriers)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRateMode('single');
+                      setRates([]);
+                      setSelectedRate(null);
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                      rateMode === 'single'
+                        ? 'bg-white text-blue-700 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Filter size={16} />
+                    <span>Single Carrier</span>
+                  </button>
+                </div>
+
+                {/* Carrier Selector (only shown in single mode) */}
+                {rateMode === 'single' && (
+                  <div className="flex-1">
+                    <select
+                      value={selectedCarrierId}
+                      onChange={(e) => {
+                        setSelectedCarrierId(e.target.value);
+                        setCarrierAccount('');
+                        setRates([]);
+                        setSelectedRate(null);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm bg-white border-2 border-blue-200 rounded-xl shadow-sm hover:border-blue-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_12px_center] bg-no-repeat pr-10 font-medium text-gray-700"
+                    >
+                      <option value="">🚚 Select a Carrier</option>
+                      {CARRIERS_DATA.map((carrier) => (
+                        <option key={carrier.id} value={carrier.id}>
+                          {carrier.name} (★ {carrier.rating})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Mode Description */}
+              <p className="text-xs text-gray-500 mt-2">
+                {rateMode === 'all' 
+                  ? '📦 Compare rates from all available carriers to find the best option for your shipment.'
+                  : '🎯 Get specific rates from your preferred carrier using your negotiated account pricing.'}
+              </p>
+            </div>
+
+            {/* Single Carrier Account Details Section */}
+            {rateMode === 'single' && selectedCarrierId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building2 size={18} className="text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Carrier Account Details</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Carrier Info */}
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <p className="text-xs text-gray-500 mb-1">Selected Carrier</p>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+                        style={{ backgroundColor: CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.color }}
+                      >
+                        {CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.logo}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ★ {CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.rating} Rating
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Selection */}
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <label className="text-xs font-medium text-gray-600 mb-2 block">Account Number</label>
+                    <select
+                      value={carrierAccount}
+                      onChange={(e) => setCarrierAccount(e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border-2 border-gray-200 rounded-lg hover:border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:18px] bg-[right_10px_center] bg-no-repeat pr-9 font-medium text-gray-700"
+                    >
+                      <option value="">Select Account</option>
+                      {(CARRIER_ACCOUNTS[selectedCarrierId] || []).map((acc) => (
+                        <option key={acc.id} value={acc.number}>
+                          {acc.number} - {acc.name}
+                        </option>
+                      ))}
+                    </select>
+                    {carrierAccount && (
+                      <p className="text-xs text-green-600 mt-1.5 flex items-center gap-1">✓ Account selected</p>
+                    )}
+                  </div>
+
+                  {/* Payment Terms */}
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <label className="text-xs font-medium text-gray-600 mb-2 block">Payment Terms (Bill To)</label>
+                    <select
+                      value={paymentTerms}
+                      onChange={(e) => setPaymentTerms(e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border-2 border-gray-200 rounded-lg hover:border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:18px] bg-[right_10px_center] bg-no-repeat pr-9 font-medium text-gray-700"
+                    >
+                      <option value="shipper">💳 Shipper (Prepaid)</option>
+                      <option value="receiver">📦 Receiver (Collect)</option>
+                      <option value="third_party">🏢 Third Party</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Third Party Account Input */}
+                {paymentTerms === 'third_party' && (
+                  <div className="mt-3">
+                    <label className="text-xs text-gray-500 mb-1 block">Third Party Account Number</label>
+                    <input
+                      type="text"
+                      value={thirdPartyAccount}
+                      onChange={(e) => setThirdPartyAccount(e.target.value)}
+                      placeholder="Enter third party account number"
+                      className="w-full md:w-1/2 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+
+                {/* Payment Summary */}
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={14} className="text-blue-600" />
+                    <p className="text-xs text-blue-800">
+                      <strong>Billing:</strong> {' '}
+                      {paymentTerms === 'shipper' && 'Charges will be billed to the shipper (you)'}
+                      {paymentTerms === 'receiver' && 'Charges will be billed to the receiver upon delivery'}
+                      {paymentTerms === 'third_party' && (thirdPartyAccount 
+                        ? `Charges will be billed to third party account: ${thirdPartyAccount}`
+                        : 'Please enter the third party account number')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rate Requirements Hint */}
+            {!canFetchRates() && rates.length === 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                <p className="text-sm text-amber-700">
+                  <strong>Required for rates:</strong> Origin city, Destination city, Package weight
+                  {rateMode === 'single' && (
+                    <span>
+                      {!selectedCarrierId && ', Carrier selection'}
+                      {selectedCarrierId && !carrierAccount && ', Account number'}
+                      {paymentTerms === 'third_party' && !thirdPartyAccount && ', Third party account'}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {ratesError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                <p className="text-sm text-red-700">{ratesError}</p>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {fetchingRates && (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <RefreshCw size={32} className="animate-spin text-green-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">
+                    {rateMode === 'all' 
+                      ? 'Fetching best rates from all carriers...'
+                      : `Fetching rates from ${CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.name || 'carrier'}...`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Rates List */}
+            {!fetchingRates && rates.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    {rateMode === 'single' && (
+                      <span 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: CARRIERS_DATA.find(c => c.id === selectedCarrierId)?.color }}
+                      />
+                    )}
+                    <p className="text-sm text-gray-500">
+                      {rateMode === 'all' 
+                        ? `Found ${rates.length} shipping options from ${new Set(rates.map(r => r.carrierName)).size} carriers`
+                        : `${rates.length} service options from ${rates[0]?.carrierName}`}
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Route: {formData.origin} → {formData.destination}
+                  </p>
+                </div>
+                
+                {/* Table Header */}
+                <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 bg-gray-100 rounded-t-lg text-xs font-semibold text-gray-600 uppercase">
+                  <div className="col-span-4">Carrier / Service</div>
+                  <div className="col-span-2 text-center">Delivery</div>
+                  <div className="col-span-1 text-center">Rating</div>
+                  <div className="col-span-3">Features</div>
+                  <div className="col-span-2 text-right">Price</div>
+                </div>
+                
+                {/* List View */}
+                <div className="border border-gray-200 rounded-lg md:rounded-t-none overflow-hidden">
+                  <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100">
+                    {rates.map((rate, index) => (
+                      <div
+                        key={rate.id}
+                        onClick={() => setSelectedRate(rate)}
+                        onKeyDown={(e) => e.key === 'Enter' && setSelectedRate(rate)}
+                        tabIndex={0}
+                        role="button"
+                        className={`grid grid-cols-1 md:grid-cols-12 gap-3 p-4 cursor-pointer transition-all ${
+                          selectedRate?.id === rate.id
+                            ? 'bg-green-50 border-l-4 border-l-green-500'
+                            : index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50/50 hover:bg-blue-50'
+                        }`}
+                      >
+                        {/* Carrier & Service Info - Col 1-4 */}
+                        <div className="md:col-span-4 flex items-center gap-3">
+                          {/* Selection Radio */}
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            selectedRate?.id === rate.id
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}>
+                            {selectedRate?.id === rate.id && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+
+                          {/* Carrier Logo */}
+                          <div 
+                            className="w-11 h-11 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm"
+                            style={{ backgroundColor: rate.carrierColor || '#6B7280' }}
+                          >
+                            {rate.carrierLogo}
+                          </div>
+
+                          {/* Carrier Details */}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-gray-900">{rate.carrierName}</p>
+                              {rate.badge && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full text-white font-medium ${
+                                  rate.badge === 'Best Value' ? 'bg-green-500' :
+                                  rate.badge === 'Fastest' ? 'bg-orange-500' :
+                                  rate.badge === 'Top Rated' ? 'bg-blue-500' : 'bg-gray-500'
+                                }`}>
+                                  {rate.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600">{rate.serviceType}</p>
+                            <p className="text-xs text-gray-400">{rate.serviceDescription}</p>
+                          </div>
+                        </div>
+
+                        {/* Delivery Time - Col 5-6 */}
+                        <div className="md:col-span-2 flex md:flex-col items-center md:justify-center gap-2 md:gap-0">
+                          <div className="flex items-center gap-1.5 text-gray-700">
+                            <Clock size={15} className="text-gray-400" />
+                            <span className="text-sm font-medium">{rate.estimatedDays} {rate.estimatedDays === '1' ? 'day' : 'days'}</span>
+                          </div>
+                          <p className="text-xs text-green-600 font-medium">{rate.deliveryDateMin}</p>
+                          {rate.deliveryDateMin !== rate.deliveryDateMax && (
+                            <p className="text-xs text-gray-400">to {rate.deliveryDateMax}</p>
+                          )}
+                        </div>
+
+                        {/* Rating - Col 7 */}
+                        <div className="md:col-span-1 flex items-center justify-center gap-1">
+                          <Star size={15} className="text-yellow-400 fill-yellow-400" />
+                          <span className="text-sm font-medium text-gray-700">{rate.carrierRating}</span>
+                        </div>
+
+                        {/* Features - Col 8-10 */}
+                        <div className="md:col-span-3 flex flex-wrap items-center gap-1">
+                          {rate.features.map((feature) => (
+                            <span
+                              key={feature}
+                              className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
+                            >
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Price - Col 11-12 */}
+                        <div className="md:col-span-2 flex flex-col items-end justify-center">
+                          {rate.discount ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 line-through">${rate.listPrice}</span>
+                                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                                  -{rate.discountPercent}%
+                                </span>
+                              </div>
+                              <p className="text-xl font-bold text-green-600">${rate.price}</p>
+                              <p className="text-xs text-green-500">Account Rate</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xl font-bold text-gray-900">${rate.price}</p>
+                              <p className="text-xs text-gray-400">{rate.currency}</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Selected Rate Summary */}
+                {selectedRate && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold text-white"
+                          style={{ backgroundColor: selectedRate.carrierColor || '#10B981' }}
+                        >
+                          {selectedRate.carrierLogo}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-green-800">
+                            Selected: {selectedRate.carrierName} - {selectedRate.serviceType}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            Est. delivery: {selectedRate.deliveryDateMin}{selectedRate.deliveryDateMin !== selectedRate.deliveryDateMax ? ` - ${selectedRate.deliveryDateMax}` : ''}
+                          </p>
+                          <div className="flex gap-1 mt-1">
+                            {selectedRate.features.slice(0, 4).map((feature) => (
+                              <span key={feature} className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+                          {selectedRate.accountNumber && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              📋 Account: {selectedRate.accountNumber} • {selectedRate.paymentTerms === 'shipper' ? 'Prepaid' : selectedRate.paymentTerms === 'receiver' ? 'Collect' : 'Third Party'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {selectedRate.discount ? (
+                          <>
+                            <div className="flex items-center justify-end gap-2 mb-1">
+                              <span className="text-sm text-gray-400 line-through">${selectedRate.listPrice}</span>
+                              <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded font-medium">
+                                SAVE ${selectedRate.discount}
+                              </span>
+                            </div>
+                            <p className="text-2xl font-bold text-green-700">${selectedRate.price}</p>
+                            <p className="text-xs text-green-600">Negotiated Rate • {selectedRate.estimatedDays} business {selectedRate.estimatedDays === '1' ? 'day' : 'days'}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-2xl font-bold text-green-700">${selectedRate.price}</p>
+                            <p className="text-xs text-green-600">{selectedRate.estimatedDays} business {selectedRate.estimatedDays === '1' ? 'day' : 'days'}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No Rates State */}
+            {!fetchingRates && rates.length === 0 && canFetchRates() && (
+              <div className="text-center py-6 text-gray-500">
+                <Truck className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">Click "Fetch Rates" to get shipping quotes</p>
+              </div>
+            )}
           </div>
         </div>
       </form>

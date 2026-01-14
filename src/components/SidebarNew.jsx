@@ -74,11 +74,6 @@ export default function Sidebar({ isOpen, onClose }) {
         icon: Plus,
       },
       {
-        name: 'Get Rates',
-        path: '/shipments/rates',
-        icon: DollarSign,
-      },
-      {
         name: 'Rate Calculator',
         path: '/shipments/calculator',
         icon: Calculator,
