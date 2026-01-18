@@ -601,6 +601,13 @@ export const useShipmentStore = create((set, get) => ({
    * Clear error
    */
   clearError: () => set({ error: null }),
+
+  /**
+   * Search shipment by Order ID (alias for tracking)
+   */
+  searchShipmentByOrderId: async (orderId) => {
+    return get().searchByOrderId(orderId);
+  },
 }));
 
 export default useShipmentStore;

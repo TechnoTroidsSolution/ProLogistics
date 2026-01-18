@@ -20,6 +20,18 @@ import CarrierCreate from '../carriers/CarrierCreate';
 import VehicleList from '../carriers/VehicleList';
 import InventoryList from '../inventory/InventoryList';
 
+// Tracking
+import { ShipmentTracking, PublicTracking } from '../shipments/tracking';
+
+// Billing
+import { InvoiceList, InvoiceDetails, InvoiceCreate } from '../billing';
+
+// Customers
+import { CustomerList, CustomerDetails, CustomerCreate } from '../customers';
+
+// Labels
+import { LabelsPage } from '../labels';
+
 // Placeholder components for new routes
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center h-64 bg-white rounded-lg border border-gray-200">
@@ -40,6 +52,9 @@ export default function AppRoutes() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/logout" element={<Logout />} />
+      
+      {/* Public Tracking Page */}
+      <Route path="/track" element={<PublicTracking />} />
 
       {/* Protected Routes with Layout */}
       <Route
@@ -70,9 +85,35 @@ export default function AppRoutes() {
           <Route path="history" element={<PlaceholderPage title="Shipment History" />} />
           <Route path=":id" element={<ShipmentDetails />} />
           <Route path=":id/edit" element={<ShipmentEdit />} />
+          <Route path=":id/tracking" element={<ShipmentTracking />} />
         </Route>
         
-        <Route path="tracking" element={<PlaceholderPage title="Shipment Tracking" />} />
+        {/* Tracking Routes */}
+        <Route path="tracking">
+          <Route index element={<ShipmentTracking />} />
+          <Route path=":id" element={<ShipmentTracking />} />
+        </Route>
+
+        {/* Labels */}
+        <Route path="labels" element={<LabelsPage />} />
+
+        {/* ============ BILLING SECTION ============ */}
+        <Route path="billing">
+          <Route index element={<Navigate to="/billing/invoices" replace />} />
+          <Route path="invoices" element={<InvoiceList />} />
+          <Route path="invoices/create" element={<InvoiceCreate />} />
+          <Route path="invoices/:id" element={<InvoiceDetails />} />
+          <Route path="payments" element={<PlaceholderPage title="Payments" />} />
+          <Route path="reports" element={<PlaceholderPage title="Billing Reports" />} />
+        </Route>
+
+        {/* ============ CUSTOMERS SECTION ============ */}
+        <Route path="customers">
+          <Route index element={<CustomerList />} />
+          <Route path="create" element={<CustomerCreate />} />
+          <Route path=":id" element={<CustomerDetails />} />
+          <Route path=":id/edit" element={<CustomerCreate />} />
+        </Route>
 
         {/* ============ SETUP SECTION ============ */}
         <Route path="setup">

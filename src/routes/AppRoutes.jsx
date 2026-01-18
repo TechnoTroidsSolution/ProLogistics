@@ -19,6 +19,9 @@ import CarrierCreate from '../carriers/CarrierCreate';
 import VehicleList from '../carriers/VehicleList';
 import InventoryList from '../inventory/InventoryList';
 
+// Tracking
+import { ShipmentTracking, PublicTracking } from '../shipments/tracking';
+
 /**
  * Application Routes
  * Defines all routes including protected routes
@@ -29,6 +32,9 @@ export default function AppRoutes() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/logout" element={<Logout />} />
+      
+      {/* Public Tracking Page */}
+      <Route path="/track" element={<PublicTracking />} />
 
       {/* Protected Routes with Layout */}
       <Route
@@ -51,6 +57,13 @@ export default function AppRoutes() {
           <Route path="create" element={<ShipmentCreate />} />
           <Route path=":id" element={<ShipmentDetails />} />
           <Route path=":id/edit" element={<ShipmentEdit />} />
+          <Route path=":id/tracking" element={<ShipmentTracking />} />
+        </Route>
+        
+        {/* Tracking (authenticated) */}
+        <Route path="tracking">
+          <Route index element={<ShipmentTracking />} />
+          <Route path=":id" element={<ShipmentTracking />} />
         </Route>
 
         {/* Carriers */}

@@ -10,6 +10,8 @@ import {
   LogOut,
   ChevronDown,
   Menu,
+  Receipt,
+  Users,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import clsx from 'clsx';
@@ -40,18 +42,34 @@ export default function TopNavBar({ onMenuClick, activeSection, onSectionChange 
       color: 'green',
     },
     {
+      id: 'billing',
+      name: 'Billing',
+      icon: Receipt,
+      path: '/billing/invoices',
+      color: 'amber',
+    },
+    {
+      id: 'customers',
+      name: 'Customers',
+      icon: Users,
+      path: '/customers',
+      color: 'purple',
+    },
+    {
       id: 'setup',
       name: 'Setup',
       icon: Settings,
       path: '/setup/carriers',
-      color: 'purple',
+      color: 'gray',
     },
   ];
 
   // Determine active section from current path
   const getCurrentSection = () => {
     const path = location.pathname;
-    if (path.startsWith('/shipments') || path.startsWith('/tracking')) return 'rate-ship';
+    if (path.startsWith('/shipments') || path.startsWith('/tracking') || path.startsWith('/labels')) return 'rate-ship';
+    if (path.startsWith('/billing')) return 'billing';
+    if (path.startsWith('/customers')) return 'customers';
     if (path.startsWith('/setup') || path.startsWith('/carriers') || path.startsWith('/vehicles') || path.startsWith('/inventory')) return 'setup';
     return 'dashboard';
   };

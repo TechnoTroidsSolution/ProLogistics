@@ -5,6 +5,7 @@ import { useCarrierStore } from '../carriers/carrier.store';
 import ShipmentTimeline from './ShipmentTimeline';
 import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
+import { LabelGenerator } from '../labels';
 import { SHIPMENT_STATUS } from '../utils/constants';
 import { formatDate, formatDateTime } from '../utils/formatters';
 import {
@@ -23,6 +24,8 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
+  Navigation,
+  Barcode,
 } from 'lucide-react';
 
 /**
@@ -49,6 +52,7 @@ export default function ShipmentDetails() {
   const [isLoadingShipment, setIsLoadingShipment] = useState(true);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [showLabelModal, setShowLabelModal] = useState(false);
   const [statusUpdate, setStatusUpdate] = useState({ status: '', notes: '', location: '' });
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
@@ -148,6 +152,22 @@ export default function ShipmentDetails() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Track Shipment Button */}
+          <button
+            onClick={() => navigate(`/shipments/${id}/tracking`)}
+            className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+          >
+            <Navigation size={18} />
+            Track
+          </button>
+          {/* Print Label Button */}
+          <button
+            onClick={() => setShowLabelModal(true)}
+            className="inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+          >
+            <Barcode size={18} />
+            Label
+          </button>
           {nextStatuses.length > 0 && (
             <button
               onClick={() => setShowStatusModal(true)}
@@ -517,6 +537,37 @@ export default function ShipmentDetails() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Label Generator Modal */}
+      {showLabelModal && (
+        <LabelGenerator
+          shipment={{
+            id: currentShipment.id,
+            trackingNumber: currentShipment.trackingNumber || currentShipment.id,
+            origin: {
+              name: currentShipment.senderName || 'Sender',
+              address: currentShipment.senderAddress || currentShipment.origin,
+              city: currentShipment.origin?.split(',')[0] || 'Origin',
+              state: currentShipment.origin?.split(',')[1]?.trim().split(' ')[0] || 'ST',
+              zip: currentShipment.origin?.split(' ').pop() || '00000',
+              phone: currentShipment.senderPhone || 'N/A',
+            },
+            destination: {
+              name: currentShipment.receiverName || 'Receiver',
+              address: currentShipment.receiverAddress || currentShipment.destination,
+              city: currentShipment.destination?.split(',')[0] || 'Destination',
+              state: currentShipment.destination?.split(',')[1]?.trim().split(' ')[0] || 'ST',
+              zip: currentShipment.destination?.split(' ').pop() || '00000',
+              phone: currentShipment.receiverPhone || 'N/A',
+            },
+            weight: currentShipment.weight || 0,
+            serviceType: currentShipment.type || 'Standard',
+            packages: 1,
+            estimatedDelivery: currentShipment.estimatedDelivery || new Date().toISOString(),
+          }}
+          onClose={() => setShowLabelModal(false)}
+        />
       )}
     </div>
   );
