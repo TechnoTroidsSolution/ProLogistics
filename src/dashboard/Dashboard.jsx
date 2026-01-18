@@ -8,36 +8,41 @@ import {
   Package,
   Truck,
   CheckCircle,
-  Clock,
   TrendingUp,
   ArrowRight,
   Activity,
   AlertCircle,
   RefreshCw,
+  Clock,
+  Calendar,
+  MapPin,
 } from 'lucide-react';
 
 /**
  * Admin Dashboard Page
- * Displays overview statistics and recent activity
+ * Displays overview statistics and quick operational summary
  */
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [todaySchedule, setTodaySchedule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const [statsData, activityData] = await Promise.all([
+      const [statsData, activityData, scheduleData] = await Promise.all([
         dashboardApi.getStats(),
         dashboardApi.getRecentActivity(10),
+        dashboardApi.getTodaySchedule(),
       ]);
-      
+
       setStats(statsData);
       setRecentActivity(activityData);
+      setTodaySchedule(scheduleData);
     } catch (err) {
       setError(err.message || 'Failed to load dashboard data');
     } finally {
@@ -70,6 +75,8 @@ export default function Dashboard() {
       color: 'bg-blue-500',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
+      trend: '+8.3%',
+      trendUp: true,
     },
     {
       title: 'Active Shipments',
@@ -87,6 +94,8 @@ export default function Dashboard() {
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
+      trend: '+12.5%',
+      trendUp: true,
     },
     {
       title: 'In Transit',
@@ -95,6 +104,7 @@ export default function Dashboard() {
       color: 'bg-purple-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
+      subtitle: 'In Transit',
     },
   ];
 
@@ -127,25 +137,19 @@ export default function Dashboard() {
       message: 'Package delivered successfully',
       timestamp: new Date(Date.now() - 7200000).toISOString(),
     },
-    {
-      id: '4',
-      type: 'vehicle_assigned',
-      shipmentId: 'SHP-2026-004',
-      orderId: 'ORD-2026-003',
-      status: 'Created',
-      message: 'Vehicle TRK-456 assigned',
-      timestamp: new Date(Date.now() - 10800000).toISOString(),
-    },
-    {
-      id: '5',
-      type: 'status_update',
-      shipmentId: 'SHP-2026-005',
-      orderId: 'ORD-2025-097',
-      status: 'In Transit',
-      message: 'Shipment departed from hub',
-      timestamp: new Date(Date.now() - 14400000).toISOString(),
-    },
   ];
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-50';
+      case 'in-progress':
+      case 'in-transit':
+        return 'text-amber-600 bg-amber-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -169,28 +173,101 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Grid */}
+      {/* Stats Grid with Mini Charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {statsCards.map((stat) => (
           <div
             key={stat.title}
             className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-xs font-medium text-gray-500">{stat.title}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
                 {stat.subtitle && (
                   <p className="text-xs text-gray-400">{stat.subtitle}</p>
                 )}
+                {stat.trend && (
+                  <div className="flex items-center gap-1 mt-1">
+                    {stat.trendUp ? (
+                      <TrendingUp className="text-green-500" size={12} />
+                    ) : (
+                      <TrendingUp className="text-red-500 rotate-180" size={12} />
+                    )}
+                    <span className={`text-xs font-medium ${stat.trendUp ? 'text-green-600' : 'text-red-600'}`}>
+                      {stat.trend}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
                 <stat.icon className={stat.textColor} size={18} />
               </div>
             </div>
+
+            {/* Mini Sparkline Chart */}
+            <div className="h-8 flex items-end gap-0.5">
+              {[65, 72, 68, 75, 80, 78, 85, 90, 88, 92, 95, 100].map((height, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 ${stat.color} rounded-t opacity-60`}
+                  style={{ height: `${height}%` }}
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Today's Activity Timeline */}
+      {todaySchedule && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="text-blue-600" size={18} />
+            <h2 className="font-semibold text-gray-900">Today's Activity</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Pickups Timeline */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Scheduled Pickups</h3>
+              <div className="space-y-2">
+                {todaySchedule.pickups?.slice(0, 4).map((pickup) => (
+                  <div key={pickup.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                    <div className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(pickup.status)}`}>
+                      {pickup.time}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{pickup.customer}</p>
+                      <p className="text-xs text-gray-500 truncate">{pickup.location}</p>
+                    </div>
+                    <MapPin className="text-gray-400 flex-shrink-0" size={14} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Deliveries Timeline */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Expected Deliveries</h3>
+              <div className="space-y-2">
+                {todaySchedule.deliveries?.slice(0, 4).map((delivery) => (
+                  <div key={delivery.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                    <div className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(delivery.status)}`}>
+                      {delivery.time}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{delivery.customer}</p>
+                      <p className="text-xs text-gray-500 truncate">{delivery.location}</p>
+                    </div>
+                    <CheckCircle className="text-gray-400 flex-shrink-0" size={14} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -208,7 +285,7 @@ export default function Dashboard() {
               </div>
               <ArrowRight className="text-primary-600 group-hover:translate-x-1 transition-transform" size={14} />
             </Link>
-            
+
             <Link
               to="/shipments"
               className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 group"
@@ -219,7 +296,7 @@ export default function Dashboard() {
               </div>
               <ArrowRight className="text-gray-600 group-hover:translate-x-1 transition-transform" size={14} />
             </Link>
-            
+
             <Link
               to="/carriers/vehicles"
               className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 group"
@@ -271,51 +348,6 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Status Overview */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <h2 className="font-semibold text-gray-900 mb-3">Shipment Status Overview</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-gray-600">Created</span>
-              <span className="text-sm font-bold text-gray-900">{displayStats.createdShipments}</span>
-            </div>
-            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gray-500 rounded-full"
-                style={{ width: `${(displayStats.createdShipments / displayStats.totalShipments) * 100}%` }}
-              />
-            </div>
-          </div>
-          
-          <div className="p-3 bg-amber-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-amber-700">In Transit</span>
-              <span className="text-sm font-bold text-amber-900">{displayStats.inTransitShipments}</span>
-            </div>
-            <div className="h-1.5 bg-amber-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-amber-500 rounded-full"
-                style={{ width: `${(displayStats.inTransitShipments / displayStats.totalShipments) * 100}%` }}
-              />
-            </div>
-          </div>
-          
-          <div className="p-3 bg-green-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-green-700">Delivered</span>
-              <span className="text-sm font-bold text-green-900">{displayStats.deliveredShipments}</span>
-            </div>
-            <div className="h-1.5 bg-green-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 rounded-full"
-                style={{ width: `${(displayStats.deliveredShipments / displayStats.totalShipments) * 100}%` }}
-              />
-            </div>
           </div>
         </div>
       </div>
