@@ -10,6 +10,9 @@ import MainLayout from '../components/MainLayoutNew';
 
 // Pages
 import Dashboard from '../dashboard/Dashboard';
+import Analytics from '../analytics/Analytics';
+import Performance from '../performance/Performance';
+import Reports from '../reports/Reports';
 import ShipmentList from '../shipments/ShipmentList';
 import ShipmentCreate from '../shipments/ShipmentCreate';
 import ShipmentEdit from '../shipments/ShipmentEdit';
@@ -52,7 +55,7 @@ export default function AppRoutes() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/logout" element={<Logout />} />
-      
+
       {/* Public Tracking Page */}
       <Route path="/track" element={<PublicTracking />} />
 
@@ -71,9 +74,9 @@ export default function AppRoutes() {
         {/* ============ DASHBOARD SECTION ============ */}
         <Route path="dashboard">
           <Route index element={<Dashboard />} />
-          <Route path="analytics" element={<PlaceholderPage title="Analytics" />} />
-          <Route path="performance" element={<PlaceholderPage title="Performance" />} />
-          <Route path="reports" element={<PlaceholderPage title="Reports" />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="performance" element={<Performance />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
 
         {/* ============ RATE/SHIP SECTION ============ */}
@@ -87,7 +90,7 @@ export default function AppRoutes() {
           <Route path=":id/edit" element={<ShipmentEdit />} />
           <Route path=":id/tracking" element={<ShipmentTracking />} />
         </Route>
-        
+
         {/* Tracking Routes */}
         <Route path="tracking">
           <Route index element={<ShipmentTracking />} />
