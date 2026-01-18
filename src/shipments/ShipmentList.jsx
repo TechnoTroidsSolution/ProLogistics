@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Navigation,
 } from 'lucide-react';
 
 /**
@@ -217,6 +218,13 @@ export default function ShipmentList() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/shipments/${shipment.id}/tracking`)}
+                            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Track Shipment"
+                          >
+                            <Navigation size={18} />
+                          </button>
                           <button
                             onClick={() => navigate(`/shipments/${shipment.id}`)}
                             className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
